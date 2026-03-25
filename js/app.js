@@ -1,7 +1,13 @@
 const CONFIG = {
     PROXY_URL: '/api/proxy',
+    // 多个备用数据源，提高可用性
     DEFAULT_SOURCES: [
-        { id: 1, name: '资源站1', url: 'https://api.apibdzy.com/api.php/provide/vod/', active: true }
+        { id: 1, name: '无尽资源', url: 'https://api.wujinapi.com/api.php/provide/vod/', active: true },
+        { id: 2, name: '闪电资源', url: 'http://sdzyapi.com/api.php/provide/vod/', active: false },
+        { id: 3, name: '百度资源', url: 'https://api.apibdzy.com/api.php/provide/vod/', active: false },
+        { id: 4, name: '天空资源', url: 'https://api.tiankongapi.com/api.php/provide/vod/', active: false },
+        { id: 5, name: '卧龙资源', url: 'https://collect.wolongzyw.com/api.php/provide/vod/', active: false },
+        { id: 6, name: '快帆资源', url: 'https://api.kuaifan.tv/api.php/provide/vod/', active: false }
     ],
     STORAGE_KEYS: {
         SOURCES: 'dianying_sources',
