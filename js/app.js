@@ -113,6 +113,31 @@ const SourceManager = {
 };
 
 const Api = {
+    // 故障转移：尝试多个数据源直到成功
+    async requestWithFailover(params, sources = null) {
+        const sourceList = sources || SourceManager.getSources();
+        
+        for (const source of sourceList) {
+            try {
+                console.log(`尝试数据源：${source.name}`);
+                const data = await this.request(source.url, params);
+                if (data && data.list && data.list.length > 0) {
+                    // 成功则保存为当前数据源
+                    if (source.id !== SourceManager.getCurrentSource()?.id) {
+                        SourceManager.setCurrentSource(source.id);
+                        console.log(`切换到数据源：${source.name}`);
+                    }
+                    return data;
+                }
+            } catch (error) {
+                console.warn(`数据源 ${source.name} 失败:`, error.message);
+                continue;
+            }
+        }
+        
+        throw new Error('所有数据源均不可用');
+    },
+    
     async request(url, params = {}) {
         // 使用前端多级缓存策略，优先利用浏览器缓存
         // 移除随机时间戳 _t 以启用浏览器和代理服务器的缓存

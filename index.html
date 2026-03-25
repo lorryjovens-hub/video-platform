@@ -72,27 +72,84 @@
                 document.getElementById('searchInput').value = searchFromUrl;
                 await handleSearch();
             } else {
-                await loadCategories();
+                // 使用故障转移机制加载分类
+                await loadCategoriesWithFailover();
                 if (currentCategory === 0 && currentPage === 1) {
                     document.getElementById('homeRecommendations').style.display = 'block';
-                    await loadHotVideos();
+                    await loadHotVideosWithFailover();
                 } else {
                     document.getElementById('homeRecommendations').style.display = 'none';
                 }
-                await loadVideos();
+                await loadVideosWithFailover();
             }
         }
 
-        async function loadHotVideos() {
+        async function loadHotVideosWithFailover() {
             try {
-                // Mock hot recommendations by fetching page 2 or random popular category
-                const data = await Api.getVideoList(currentSource, { ac: 'list', pg: 2 });
+                const data = await Api.requestWithFailover({ ac: 'list', pg: 2 });
                 if (data.list && data.list.length > 0) {
-                    const hotVideos = data.list.slice(0, 7); // Top 7 hot
+                    const hotVideos = data.list.slice(0, 7);
                     renderHotGrid(hotVideos);
+                    // 更新 currentSource 为故障转移后成功的源
+                    currentSource = SourceManager.getCurrentSource();
                 }
             } catch (error) {
                 console.error('加载热门推荐失败:', error);
+            }
+        }
+
+        async function loadCategoriesWithFailover() {
+            try {
+                const data = await Api.requestWithFailover({ ac: 'list', pg: 1 });
+                if (data.class && data.class.length > 0) {
+                    categories = data.class;
+                    renderCategories();
+                    // 更新 currentSource 为故障转移后成功的源
+                    currentSource = SourceManager.getCurrentSource();
+                } else {
+                    renderCategories();
+                }
+            } catch (error) {
+                console.error('加载分类失败:', error);
+                renderCategories();
+            }
+        }
+
+        async function loadVideosWithFailover() {
+            const grid = document.getElementById('videoGrid');
+            UI.showLoading(grid);
+            
+            try {
+                let data;
+                if (currentCategory > 0) {
+                    data = await Api.requestWithFailover({ ac: 'list', t: currentCategory, pg: currentPage });
+                } else {
+                    data = await Api.requestWithFailover({ ac: 'list', pg: currentPage });
+                }
+                
+                // 更新 currentSource 为故障转移后成功的源
+                currentSource = SourceManager.getCurrentSource();
+                
+                if (data.list && data.list.length > 0) {
+                    renderVideoList(data.list);
+                    UI.renderPagination(
+                        parseInt(data.page) || currentPage,
+                        parseInt(data.pagecount) || 1,
+                        parseInt(data.total) || 0
+                    );
+                    
+                    loadPostersAsync(data.list);
+                    
+                    if (data.page < data.pagecount) {
+                        Api.preloadNextPage(currentSource, currentCategory, currentPage);
+                    }
+                } else {
+                    UI.showEmpty(grid, '暂无影视数据');
+                    document.getElementById('pagination').innerHTML = '';
+                }
+            } catch (error) {
+                console.error('加载视频列表失败:', error);
+                UI.showError(grid, '加载失败，请检查数据源配置');
             }
         }
 
